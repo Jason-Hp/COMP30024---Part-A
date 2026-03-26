@@ -59,8 +59,14 @@ def search(
         return None
 
     queue = deque()
+    # BFS WITH SAME/UNIFORM COST EDGES MEANS EXPANSION RESULTS IN OPTIMALITY HERE, NO NEED TO WAIT UNTIL GENERATION
     
-
+    # FOR TMR, basically do bfs with nodes in queue, until the generated node contains remaining_blues = 0
+    # during EXPANSION of a node, ofc do the movement (all of the 12), for each, generate a new node with the new coords for the frontier, with new state, path, and remaining_blues ofc
+        # remove current node coord from dict first, for updated/temp state
+            # ***FOR CASCADE -> cascade first, rmb all coords of new stack of ones (>= 2)
+                # calc remaining blues after cascade, get latest state
+                # for each coord (for new stack of ones), create node with latest state, remaining blues and its corresponding coords and insert into queue
 
 
     # Here we're returning "hardcoded" actions as an example of the expected
@@ -83,6 +89,8 @@ class Node:
 
     # red stack chosen (ADD this during GENERATION, USE this during EXPANSION)
     chosen: Coord
+
+    path: list[Action]
 
     # FASTER GOAL CHECK
     remaining_blues = 0
