@@ -1,9 +1,9 @@
 # COMP30024 Artificial Intelligence, Semester 1 2026
 # Project Part A: Single Player Cascade
 
-from .core import CellState, Coord, Direction, Action, MoveAction, EatAction, CascadeAction
+from .core import CellState, Coord, Direction, Action, MoveAction, EatAction, CascadeAction, PlayerColor
 from .utils import render_board
-
+from collections import deque
 
 def search(
     board: dict[Coord, CellState]
@@ -33,6 +33,36 @@ def search(
     # ... (your solution goes here!)
     # ...
 
+    #Find MAX blue height
+    #Get Blue Count
+    #Find Sum of all red height
+    #Compare and return None if less
+    max_blue_height = 0
+    number_of_blues = 0
+    total_red_height = 0
+    starting_nodes = []
+    for k, v in board.items():
+        if v.color == PlayerColor.BLUE:
+            max_blue_height = max(max_blue_height, v.height)
+            number_of_blues += 1
+        else:
+            total_red_height += v.height
+            node = Node(board.copy(), k, 0)
+            starting_nodes.append(node)
+        
+    for node in starting_nodes:
+        node.remaining_blues = number_of_blues
+
+    
+    # Edge case
+    if (total_red_height < max_blue_height):
+        return None
+
+    queue = deque()
+    
+
+
+
     # Here we're returning "hardcoded" actions as an example of the expected
     # output format. Of course, you should instead return the result of your
     # search algorithm. Remember: if no solution is possible for a given input,
@@ -41,3 +71,18 @@ def search(
         MoveAction(Coord(3, 3), Direction.Down),
         EatAction(Coord(4, 3), Direction.Down),
     ]
+
+# Util functions/classes below
+
+
+# Node for graph
+class Node:
+
+    # state is basically current board state
+    state: dict[Coord, CellState]
+
+    # red stack chosen (ADD this during GENERATION, USE this during EXPANSION)
+    chosen: Coord
+
+    # FASTER GOAL CHECK
+    remaining_blues = 0
