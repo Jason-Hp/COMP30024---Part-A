@@ -19,7 +19,7 @@ _PARENT_NONE = (-1, None)
 
 # Checks whether a coordinate is on the board
 def in_bounds(r: int, c: int) -> bool:
-    return 0 <= r <= BOARD_N and 0 <= c <= BOARD_N
+    return 0 <= r < BOARD_N and 0 <= c < BOARD_N
 
 # Converets assignment input into the internal immutable State
 def state_from_board(board: dict[Coord, CellState]) -> State:
@@ -35,7 +35,11 @@ def board_from_state(state: State) -> dict[tuple[int, int], Stack]:
 # Converts the temporary mutable internal board back into immutable tuple
 def state_from_internal(board: dict[tuple[int, int], Stack]) -> State:
     return tuple(
-        sorted((r, c, stack[0], stack[1]) for (r, c), stack in board.items())
+        sorted(
+            (r, c, stack[0], stack[1]) 
+            for (r, c), stack in board.items()
+            if in_bounds(r, c) # Extra guard
+        )
     )
     
 # Checks if there's no blues left
@@ -248,6 +252,8 @@ def search(
     # The render_board() function is handy for debugging. It will print out a
     # board state in a human-readable format. If your terminal supports ANSI
     # codes, set the `ansi` flag to True to print a colour-coded version!
+    
+    # REMEMBER TO REMOVE BEFORE FINAL SUBMISSION!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     print(render_board(board, ansi=True))
 
     # Convert input into immutable tuple 
@@ -255,7 +261,7 @@ def search(
     
     # Early exits (no blue or no red)
     if reaches_goal(start):
-         return []
+        return []
     if not has_red(start):
         return None
     
