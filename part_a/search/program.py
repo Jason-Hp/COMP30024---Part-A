@@ -40,57 +40,199 @@ def search(
     max_blue_height = 0
     number_of_blues = 0
     total_red_height = 0
-    starting_nodes = []
+
     for k, v in board.items():
         if v.color == PlayerColor.BLUE:
             max_blue_height = max(max_blue_height, v.height)
             number_of_blues += 1
         else:
             total_red_height += v.height
-            node = Node(board.copy(), k, 0)
-            starting_nodes.append(node)
         
-    for node in starting_nodes:
-        node.remaining_blues = number_of_blues
 
+    queue = deque()
     
     # Edge case
     if (total_red_height < max_blue_height):
         return None
+    
+    queue.append(Node(board.copy(), [], number_of_blues))
 
-    queue = deque()
-    # BFS WITH SAME/UNIFORM COST EDGES MEANS EXPANSION RESULTS IN OPTIMALITY HERE, NO NEED TO WAIT UNTIL GENERATION
+    # BFS WITH SAME/UNIFORM COST EDGES MEANS GENERATION RESULTS IN OPTIMALITY HERE, NO NEED TO WAIT UNTIL EXPANDED
     
     # FOR TMR, basically do bfs with nodes in queue, until the generated node contains remaining_blues = 0
-    # during EXPANSION of a node, ofc do the movement (all of the 12), for each, generate a new node with the new coords for the frontier, with new state, path, and remaining_blues ofc
-        # remove current node coord from dict first, for updated/temp state
-            # ***FOR CASCADE -> cascade first, rmb all coords of new stack of ones (>= 2)
-                # calc remaining blues after cascade, get latest state
-                # for each coord (for new stack of ones), create node with latest state, remaining blues and its corresponding coords and insert into queue
+    # during EXPANSION of a node, ofc do the movement (all of the 12), for each, generate a new node for the frontier, with new state, path, and remaining_blues ofc
 
 
-    # Here we're returning "hardcoded" actions as an example of the expected
-    # output format. Of course, you should instead return the result of your
-    # search algorithm. Remember: if no solution is possible for a given input,
-    # return `None` instead of a list.
-    return [
-        MoveAction(Coord(3, 3), Direction.Down),
-        EatAction(Coord(4, 3), Direction.Down),
-    ]
+    visited_set = set()
+    visited_set.add(frozenset(board.items()))
+    directions = [Direction.Down, Direction.Left, Direction.Right, Direction.Up]
+    while queue:
+        # Expand a node AKA remove from queue/Frontier
+        expanded_node = queue.popleft()
+        current_state = expanded_node.state.copy()
+
+        for k, v in current_state.items():
+            if v.color is not PlayerColor.RED:
+                continue
+
+            current_cell_state = v
+            expanded_node.state.pop(k)
+
+            # This is optimizaton to somewhat reduce branching factor from 12 -> 8~ 
+            eat_list = []
+
+            # Move and cascade first
+            for direction in directions:
+                generated_node = move(expanded_node, direction, eat_list, current_cell_state, k)
+
+                if generated_node:
+                    state_set = frozenset(generated_node.state.items())
+                    if state_set not in visited_set:
+                        visited_set.add(state_set)
+                        queue.append(generated_node)
+                        
+                        # Might be unecessary btw
+                        if generated_node.remaining_blues == 0:
+                            return generated_node.path
+
+                # make sure height >= 2
+                if current_cell_state.height >= 2:
+                    generated_node = cascade(expanded_node, direction, current_cell_state, k)
+                
+                    if generated_node:
+                        state_set = frozenset(generated_node.state.items())
+                        if state_set not in visited_set:
+                            visited_set.add(state_set)
+                            queue.append(generated_node)
+                            if generated_node.remaining_blues == 0:
+                                return generated_node.path
+            
+            # eat from eat list
+            for eat_coord in eat_list:
+                generated_node = eat(expanded_node, eat_coord, current_cell_state, k)
+                if generated_node:
+                    state_set = frozenset(generated_node.state.items())
+                    if state_set not in visited_set:
+                        visited_set.add(state_set)
+                        queue.append(generated_node)
+                        if generated_node.remaining_blues == 0:
+                            return generated_node.path
+            
+            # backtrack
+            expanded_node.state[k] = v
+
 
 # Util functions/classes below
-
 
 # Node for graph
 class Node:
 
+    def __init__(self, state, path, remaining_blues):
+        self.state = state
+        self.path = path
+        self.remaining_blues = remaining_blues
+
     # state is basically current board state
     state: dict[Coord, CellState]
-
-    # red stack chosen (ADD this during GENERATION, USE this during EXPANSION)
-    chosen: Coord
 
     path: list[Action]
 
     # FASTER GOAL CHECK
     remaining_blues = 0
+
+def move(node: Node, direction: Direction, eat_list: list, current_cell_state: CellState, current_coord: Coord):
+    coord = current_coord
+    try:
+        coord = Coord(coord.r + direction.__getattribute__("r"), coord.c + direction.__getattribute__("c"))
+    except:
+        return None
+
+
+    if node.state.get(coord):
+        cellstate = node.state[coord]
+        if cellstate.color == PlayerColor.BLUE:
+            eat_list.append([coord, direction])
+            return None
+        else:
+            # cellstate is red
+            state = node.state.copy()
+            path = node.path.copy()
+
+            state[coord] = CellState(PlayerColor.RED, cellstate.height + current_cell_state.height)
+
+            path.append(MoveAction(current_coord, direction))
+            return Node(state, path, node.remaining_blues)
+    else:
+        state = node.state.copy()
+        path = node.path.copy()
+        state[coord] = CellState(PlayerColor.RED, current_cell_state.height)
+        path.append(MoveAction(current_coord, direction))
+        return Node(state, path, node.remaining_blues)
+
+
+def eat(node: Node, coord_and_dir: list, current_cell_state: CellState, current_coord: Coord):
+    coord = coord_and_dir[0]
+    dir = coord_and_dir[1]
+
+    blue_cell = node.state[coord]
+    if (current_cell_state.height < blue_cell.height):
+        return None
+
+    # If able to eat
+    state = node.state.copy()
+    path = node.path.copy()
+    state[coord] = CellState(PlayerColor.RED, current_cell_state.height)
+    path.append(EatAction(current_coord, dir))
+    return Node(state, path, node.remaining_blues - 1)
+
+def cascade(node: Node, direction: Direction, current_cell_state: CellState, current_coord: Coord):
+    
+    # Cascade out of bounds
+    coord = current_coord
+    try:
+        coord = Coord(coord.r + direction.__getattribute__("r"), coord.c + direction.__getattribute__("c"))
+    except:
+        return None
+
+    state = node.state.copy()
+    path = node.path.copy()
+    remaining_blues = node.remaining_blues
+    path.append(CascadeAction(current_coord, direction))
+
+    current_height = current_cell_state.height
+
+    #reset coord var
+    coord = current_coord
+
+    # Cascade height no of times
+    for _ in range(current_height): 
+        
+        try:
+            coord = Coord(coord.r + direction.__getattribute__("r"), coord.c + direction.__getattribute__("c"))
+        except:
+            break
+        
+        next_coord = coord
+        prev_state_cell = None
+        pushed_out = False
+        while(state.get(next_coord)):
+            cell_state = state[next_coord]
+            if prev_state_cell is None:
+                state.pop(next_coord, None)
+            else:
+                state[next_coord] = prev_state_cell
+            try:
+                next_coord = Coord(next_coord.r + direction.__getattribute__("r"), next_coord.c + direction.__getattribute__("c"))
+                prev_state_cell = cell_state
+            except:
+                pushed_out = True
+                if cell_state.color == PlayerColor.BLUE:
+                    remaining_blues -= 1
+                break
+        
+        if not pushed_out:
+            state[next_coord] = prev_state_cell
+
+        state[coord] = CellState(PlayerColor.RED, 1)
+    
+    return Node(state, path, remaining_blues)
