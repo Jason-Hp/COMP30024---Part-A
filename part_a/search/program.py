@@ -252,9 +252,7 @@ def search(
     # The render_board() function is handy for debugging. It will print out a
     # board state in a human-readable format. If your terminal supports ANSI
     # codes, set the `ansi` flag to True to print a colour-coded version!
-    
-    # REMEMBER TO REMOVE BEFORE FINAL SUBMISSION!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    print(render_board(board, ansi=True))
+    # print(render_board(board, ansi=True))
 
     # Convert input into immutable tuple 
     start = state_from_board(board)
